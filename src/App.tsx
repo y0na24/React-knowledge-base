@@ -1,7 +1,8 @@
 import { UseDebounceExampleComponent } from './hooks/useDebounce/useDebounce'
+import { UseOutsideClickExample } from './hooks/useOutsideClick/useOutsideClick'
 
 function App() {
-	return <UseDebounceExampleComponent />
+	return <UseOutsideClickExample />
 }
 
 export default App
