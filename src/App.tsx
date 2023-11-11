@@ -1,5 +1,7 @@
+import { CbMemoExample } from './knowledgeBase/cb-memoWithOurHands/CbMemoExample'
+
 function App() {
-	return null
+	return <CbMemoExample />
 }
 
 export default App
