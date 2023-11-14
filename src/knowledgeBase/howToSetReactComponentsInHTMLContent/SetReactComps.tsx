@@ -1,9 +1,18 @@
-import { useEffect, useRef, useState } from 'react'
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import ReactDOM from 'react-dom/client'
 
 function DynamicContent() {
-	return <div style={{ width: 300, height: 300, background: 'lightgrey' }}>{Math.random()}</div>
+	const value = useContext(NumberContext)
+
+	return (
+		<div style={{ width: 300, height: 300, background: 'lightgrey' }}>
+			{value + Math.random()}
+		</div>
+	)
 }
+
+const NumberContext = createContext<number>(24)
 
 const dangerousHTML = `
   <div>
@@ -15,7 +24,7 @@ const dangerousHTML = `
     <p>Lorem ipsum dolor sit amet consectetur adipisicing elit. Accusantium qui modi, rem distinctio sunt debitis tempora iusto! Eos perspiciatis hic magni tempore officia, numquam repudiandae quae ad reprehenderit error. Velit blanditiis voluptatum, impedit inventore commodi natus explicabo nemo reprehenderit voluptas quisquam alias, cum tenetur! Cum eveniet neque quidem minima provident?</p>
   </div>
 `
-
+//1 way
 export function SetReactComps() {
 	const [value, setValue] = useState('')
 	const contentRef = useRef<HTMLDivElement>(null)
@@ -46,11 +55,61 @@ export function SetReactComps() {
 
 	return (
 		<div>
-			<input type='text' value={value} onChange={e => setValue(e.target.value)} />
+			<input
+				type='text'
+				value={value}
+				onChange={e => setValue(e.target.value)}
+			/>
 
 			<div>{value}</div>
 
-			<div ref={contentRef} dangerouslySetInnerHTML={{ __html: dangerousHTML }} />
+			<div
+				ref={contentRef}
+				dangerouslySetInnerHTML={{ __html: dangerousHTML }}
+			/>
+		</div>
+	)
+}
+
+//2 way
+export function SetReactComps2() {
+	const [value, setValue] = useState('')
+	const [dynamicContentElements, setDynamicContentElements] = useState<
+		Element[]
+	>([])
+	const contentRef = useRef<HTMLDivElement>(null)
+
+	useEffect(() => {
+		const contentElement = contentRef.current
+
+		if (!contentElement) return
+
+		const dynamicContentElements = contentElement.querySelectorAll(
+			'[data-element="dynamic-content"]'
+		)
+
+		setDynamicContentElements(Array.from(dynamicContentElements))
+	}, [])
+
+	return (
+		<div>
+			<input
+				type='text'
+				value={value}
+				onChange={e => setValue(e.target.value)}
+			/>
+
+			<div>{value}</div>
+
+			<div
+				ref={contentRef}
+				dangerouslySetInnerHTML={{ __html: dangerousHTML }}
+			/>
+			<NumberContext.Provider value={100}>
+				{dynamicContentElements.map(element =>
+					createPortal(<DynamicContent />, element)
+				)}
+			</NumberContext.Provider>
 		</div>
 	)
 }
