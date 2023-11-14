@@ -1,7 +1,7 @@
-import { CbMemoExample } from './knowledgeBase/cb-memoWithOurHands/CbMemoExample'
+import { SetReactComps } from './knowledgeBase/howToSetReactComponentsInHTMLContent/SetReactComps'
 
 function App() {
-	return <CbMemoExample />
+	return <SetReactComps />
 }
 
 export default App
