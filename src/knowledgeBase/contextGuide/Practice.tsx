@@ -9,6 +9,7 @@ import {
 	useState,
 } from 'react'
 
+
 class MiniStore<T> {
 	private subscribtions: Set<() => void> = new Set<() => void>()
 	private state: T
