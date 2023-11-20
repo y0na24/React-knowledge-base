@@ -1,8 +1,7 @@
-import { SetReactComps } from './knowledgeBase/howToSetReactComponentsInHTMLContent/SetReactComps'
-import { SetReactComps2 } from './knowledgeBase/howToSetReactComponentsInHTMLContent/SetReactComps'
+import { PromisePollyfil } from './knowledgeBase/promise-pollyfil'
 
 function App() {
-	return <SetReactComps2 />
+	return <PromisePollyfil />
 }
 
 export default App
