@@ -80,6 +80,13 @@ export const PromisePollyfil = () => {
 					resolve(nextValue)
 				})
 			} else {
+				const catchCbs = this.catchCbs
+				this.catchCbs = []
+
+				catchCbs.forEach(([catchCb, reject]) => {
+					const nextValue = catchCb(value)
+					reject(nextValue)
+				})
 			}
 		}
 	}
