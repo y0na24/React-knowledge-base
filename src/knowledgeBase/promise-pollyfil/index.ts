@@ -1,31 +1,15 @@
+import { asap, isPromiseLike } from './utils'
+
 /*
-1. отрабатывают then, возвращают новый промис + пуш в промис, от которого вызываются, колбэка,
- который имеют и resolve'а, который будет запускать функцию resolve, нового промиса, который будет
- иметь доступ уже к следущему колбэку и так по цепочке
-
-2. 
-	проходит таймаут и запускается первый resolve с аргументом sleep(500).
-	sleep - функция, которая возвращает промис, у него есть таймаут, соответсвенно,
-	в первый resolve прилетит промис со статусом pending.
-
-3.
-	т.к в функцию resolve прилетел промис, он попал в тайпгард.
-	в тайпгарде вызывается then этого промиса с аргументом this.resolve.
-	then пушит в массив этого промиса resolve прошлого и следующего.
-	this.resolve будет запускать рекурсию, после окочания таймаута.
-	Т.е тайпгард позволяет отложить запуск рекурсии, запушить старый resolve, который имеет уже колбэк 
-	в массиве, и как только таймаут пройдет, случится resolve, который запустит старый resolve 
-	как только таймаут пройдет запустится 
-
-4. проходит 2 секунды, отрабатывает resolve этого промиса, который был со статусом пендинг, с аргументом 5.
-выполняется фунуция resolve, которая вызывается как thenCb, чтобы как раз запустить рекурсию, которая
-уже будет исполняться как и ранее.
-
-SUMMARY:
+SUMMARY о проверке в методе resolve на PromiseLike:
 
 тайпгард позволяет нам подождать resolv'а пендинг промиса и запустить повторно первый resolve, который 
 уже получает аргумент в виде примитива и запускает рекурсию функций resolve, который будут вызываться
 каждый раз в разном контексте, что позволит пользоваться колбэками, которые пушатся на ините
+
+SUMMARY о создании проверки есть ли коллбэк:
+
+
 */
 
 export const PromisePollyfil = () => {
@@ -37,24 +21,84 @@ export const PromisePollyfil = () => {
 	type Status = 'fulfilled' | 'rejected' | 'pending'
 
 	class MyPromise<T> {
-		thenCbs: [AnyFunc, Resolve<T>][] = []
-		catchCbs: [AnyFunc, Reject][] = []
+		thenCbs: [AnyFunc | undefined, AnyFunc | undefined, Resolve<T>, Reject][] =
+			[]
 		status: Status = 'pending'
+		value: T | undefined = undefined
+		err: T | undefined = undefined
 
 		constructor(initializer: Initializer<T>) {
 			initializer(this.resolve, this.reject)
 		}
 
-		then = (thenCb: AnyFunc) => {
-			return new MyPromise((resolve, reject) => {
-				this.thenCbs.push([thenCb, resolve])
+		static all<U>(promises: MyPromise<U>[]) {
+			const result = Array(promises.length)
+			let count = 0
+
+			return new MyPromise<any>((resolve, reject) => {
+				promises.forEach((p, index) => {
+					p.then(value => {
+						result[index] = value
+						count++
+
+						if (count === promises.length) {
+							resolve(result)
+						}
+					}).catch(err => {
+						reject(err)
+					})
+				})
 			})
 		}
 
-		catch = (catchCb: AnyFunc) => {
+		static allSettled<U>(promises: MyPromise<U>[]) {
+			return MyPromise.all(
+				promises.map(p =>
+					p
+						.then(value => ({ status: 'fulfilled' as const, value }))
+						.catch(reason => ({ status: 'rejected' as const, reason }))
+				)
+			)
+		}
+
+		static race<U>(promises: MyPromise<U>[]) {
 			return new MyPromise((resolve, reject) => {
-				this.catchCbs.push([catchCb, reject])
+				promises.forEach(p => {
+					p.then(resolve).catch(reject)
+				})
 			})
+		}
+
+		static resolve<U>(value: U) {
+			return new MyPromise<U>(resolve => {
+				resolve(value)
+			})
+		}
+
+		static reject(reason?: any) {
+			return new MyPromise((_, reject) => {
+				reject(reason)
+			})
+		}
+
+		then = (thenCb?: AnyFunc, catchCb?: AnyFunc) => {
+			const promise = new MyPromise((resolve, reject) => {
+				this.thenCbs.push([thenCb, catchCb, resolve, reject])
+			})
+
+			this.processNextTask()
+
+			return promise
+		}
+
+		catch = (catchCb?: AnyFunc) => {
+			const promise = new MyPromise((resolve, reject) => {
+				this.thenCbs.push([undefined, catchCb, resolve, reject])
+			})
+
+			this.processNextTask()
+
+			return promise
 		}
 
 		private resolve = (value: T | PromiseLike<T>) => {
@@ -62,53 +106,69 @@ export const PromisePollyfil = () => {
 				value.then(this.resolve, this.reject)
 			} else {
 				this.status = 'fulfilled'
-				this.processNextTask(value)
+				this.value = value
+
+				this.processNextTask()
 			}
 		}
 
-		private reject = () => {}
+		private reject = (reason?: any) => {
+			this.status = 'rejected'
+			this.err = reason
 
-		private processNextTask = (value: T | PromiseLike<T>) => {
-			if (this.status === 'pending') return
+			this.processNextTask()
+		}
 
-			if (this.status === 'fulfilled') {
+		private processNextTask = () => {
+			queueMicrotask(() => {
+				if (this.status === 'pending') return
+
 				const thenCbs = this.thenCbs
 				this.thenCbs = []
 
-				thenCbs.forEach(([thenCb, resolve]) => {
-					const nextValue = thenCb(value)
-					resolve(nextValue)
+				thenCbs.forEach(([thenCb, catchCb, resolve, reject]) => {
+					try {
+						if (this.status === 'fulfilled') {
+							const nextValue = thenCb ? thenCb(this.value) : this.value
+							resolve(nextValue)
+						} else {
+							if (catchCb) {
+								resolve(catchCb(this.err))
+							} else {
+								reject(this.err)
+							}
+						}
+					} catch (err) {
+						reject(err)
+					}
 				})
-			} else {
-				const catchCbs = this.catchCbs
-				this.catchCbs = []
-
-				catchCbs.forEach(([catchCb, reject]) => {
-					const nextValue = catchCb(value)
-					reject(nextValue)
-				})
-			}
+			})
 		}
 	}
 
-	const sleep = <T>(ms: number) => {
-		return new MyPromise<number>(res => {
-			setTimeout(() => {
-				res(5)
-			}, ms)
-		})
-	}
-
 	const promise = new MyPromise((resolve, reject) => {
-		setTimeout(() => {
-			resolve(sleep(2000))
-		}, 1000)
+		resolve(5)
 	})
 		.then(value => {
 			console.log(value)
-			return value + 5
+
+			throw new Error('error')
 		})
-		.then(value => console.log(value))
+		.then(() => {
+			console.log('asdfasdfsdaf')
+		})
+		.then(() => {
+			console.log('test')
+		})
+		.catch(err => {
+			console.error('=====', err)
+		})
+		.then(() => {
+			return new MyPromise((resolve, reject) => {
+				resolve(5)
+			})
+		})
+		.then(console.log)
 
 	return null
 }
