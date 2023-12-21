@@ -1,8 +1,8 @@
-import { Virtualization } from './knowledgeBase/virtualization/Virtualization'
 import './index.css'
+import { Cypress } from './knowledgeBase/cypress/Cypress'
 
 function App() {
-	return <Virtualization />
+	return <Cypress />
 }
 
 export default App
