@@ -1,7 +1,8 @@
-import { EntityAdapter } from './knowledgeBase/entity-adapter/EntityAdapter'
+import { Virtualization } from './knowledgeBase/virtualization/Virtualization'
+import './index.css'
 
 function App() {
-	return <EntityAdapter />
+	return <Virtualization />
 }
 
 export default App
