@@ -1,7 +1,7 @@
-import { PromisePollyfil } from './knowledgeBase/promise-pollyfil'
+import { EntityAdapter } from './knowledgeBase/entity-adapter/EntityAdapter'
 
 function App() {
-	return <PromisePollyfil />
+	return <EntityAdapter />
 }
 
 export default App

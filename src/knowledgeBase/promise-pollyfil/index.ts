@@ -1,4 +1,4 @@
-import { asap, isPromiseLike } from './utils'
+import { isPromiseLike } from './utils'
 
 /*
 SUMMARY о проверке в методе resolve на PromiseLike:
