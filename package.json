@@ -16,7 +16,8 @@
     "react-dom": "^18.2.0",
     "react-redux": "^9.0.4",
     "react-virtualized-auto-sizer": "^1.0.20",
-    "react-window": "^1.8.10"
+    "react-window": "^1.8.10",
+    "ts-node": "^10.9.2"
   },
   "devDependencies": {
     "@types/lodash": "^4.14.201",
